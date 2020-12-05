@@ -94,7 +94,7 @@ bool ValidatePassportFields(const map<string, string>& passport)
         auto it = passport.find("hgt");
         if (!regex_match(it->second, regex("([0-9]{3}(cm))|([0-9]{2}(in))")))
         {
-            cout << it->second << endl;
+            //cout << it->second << endl;
             return false;
         }
     }
