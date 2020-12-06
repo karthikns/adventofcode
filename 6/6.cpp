@@ -1,7 +1,9 @@
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <set>
 #include <string>
+#include <vector>
 
 using namespace std;
 
@@ -50,7 +52,7 @@ size_t SumOfCountOfUniqueAnswersInGroups(const string& inputFileName)
 }
 
 // Part 2
-size_t SumOfCountOfUniqueAnswersInGroups2(const string& inputFileName)
+size_t SumOfCountOfCommonAnswersInGroups(const string& inputFileName)
 {
     size_t sumOfCountOfUniqueAnswersInGroups = 0;
 
@@ -65,23 +67,35 @@ size_t SumOfCountOfUniqueAnswersInGroups2(const string& inputFileName)
         }
 
         string answersByPerson;
-        set<char> answersInGroup;
+        const vector<char> allLetters = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', };
+        vector<char> answersIntersectionInGroup = allLetters;
         while (inputFile.good() && !inputFile.eof())
         {
             getline(inputFile, answersByPerson);
 
             if (answersByPerson.size() == 0)
             {
-                cout << answersInGroup.size() << endl;
-                sumOfCountOfUniqueAnswersInGroups += answersInGroup.size();
-                answersInGroup.clear();
+                //cout << "    " << answersIntersectionInGroup.size() << endl;
+                sumOfCountOfUniqueAnswersInGroups += answersIntersectionInGroup.size();
+                answersIntersectionInGroup = allLetters;
             }
             else
             {
-                answersInGroup.insert(begin(answersByPerson), end(answersByPerson));
+                vector<char> intersectionTemp(26);
+
+                sort(begin(answersByPerson), end(answersByPerson));
+
+                set_intersection(
+                    begin(answersByPerson), end(answersByPerson),
+                    begin(answersIntersectionInGroup), end(answersIntersectionInGroup),
+                    begin(intersectionTemp)
+                );
+
+                answersIntersectionInGroup = move(intersectionTemp);
+                answersIntersectionInGroup.erase(remove(begin(answersIntersectionInGroup), end(answersIntersectionInGroup), 0), end(answersIntersectionInGroup));
             }
 
-            cout << "line: " << answersByPerson << endl;
+            //cout << "line: " << answersByPerson << endl;
         }
     }
     catch (...)
@@ -97,7 +111,8 @@ int main()
 {
     const string inputFileName(R"(6_in.txt)");
 
-    cout << SumOfCountOfUniqueAnswersInGroups(inputFileName) << endl;
+    cout << SumOfCountOfUniqueAnswersInGroups(inputFileName) << endl << endl;
+    cout << SumOfCountOfCommonAnswersInGroups(inputFileName) << endl;
 
     return 0;
 }
