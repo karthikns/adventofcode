@@ -5,6 +5,8 @@
 
 using namespace std;
 
+using SeatChangerFunction = void(char& newComputedSeat, const vector<string>& oldSeatingGrid, const int yIndex, const int xIndex);
+
 vector<string> ParseInputFile(const string& inputFileName)
 {
     vector<string> parseResult{};
@@ -52,7 +54,7 @@ bool AreSeatingGridsSame(const vector<string>& first, const vector<string>& seco
     return true;
 }
 
-void ComputeNewSeatingPositionPart1(char& newComputedSeat, const vector<string>& oldSeatingGrid, const int yIndex, const int xIndex)
+void SeatChangerPart1(char& newComputedSeat, const vector<string>& oldSeatingGrid, const int yIndex, const int xIndex)
 {
     const int maxYSize = static_cast<int>(oldSeatingGrid.size());
     const int maxXSize = static_cast<int>(oldSeatingGrid[0].size());
@@ -95,6 +97,78 @@ void ComputeNewSeatingPositionPart1(char& newComputedSeat, const vector<string>&
     newComputedSeat = oldSeatingGrid[yIndex][xIndex];
 }
 
+char FindFirstSeatInDirection(const vector<string>& seatingGrid, const int yIndex, const int xIndex, const int yDirection, const int xDirection)
+{
+    int xPosToCheck = xIndex + xDirection;
+    int yPosToCheck = yIndex + yDirection;
+
+    const int maxY = static_cast<int>(seatingGrid.size());
+    const int maxX = static_cast<int>(seatingGrid[0].size());
+
+    while (true)
+    {
+        if (xPosToCheck < 0 || xPosToCheck >= maxX)
+            return '.';
+
+        if (yPosToCheck < 0 || yPosToCheck >= maxY)
+            return '.';
+
+        const char seatStatusAtPos = seatingGrid[yPosToCheck][xPosToCheck];
+        if (seatStatusAtPos == 'L' || seatStatusAtPos == '#')
+            return seatStatusAtPos;
+
+        xPosToCheck += xDirection;
+        yPosToCheck += yDirection;
+    }
+
+    return '.';
+}
+
+void SeatChangerPart2(char& newComputedSeat, const vector<string>& oldSeatingGrid, const int yIndex, const int xIndex)
+{
+    const int maxYSize = static_cast<int>(oldSeatingGrid.size());
+    const int maxXSize = static_cast<int>(oldSeatingGrid[0].size());
+
+    if (oldSeatingGrid[yIndex][xIndex] == '.')
+        return;
+
+    size_t numberOfAdjacentOccupiedSeats = 0;
+    for (int yIncrement = -1; yIncrement <= 1; ++yIncrement)
+    {
+        for (int xIncrement = -1; xIncrement <= 1; ++xIncrement)
+        {
+            if (xIncrement == 0 && yIncrement == 0)
+            {
+                continue;
+            }
+
+            char oldSeatInDirection = FindFirstSeatInDirection(oldSeatingGrid, yIndex, xIndex, yIncrement, xIncrement);
+
+            //const size_t yIndexToCheck = yIndex + yIncrement;
+            //const size_t xIndexToCheck = xIndex + xIncrement;
+            //const char& oldSeat = oldSeatingGrid[yIndexToCheck][xIndexToCheck];
+            if (oldSeatInDirection == '#')
+            {
+                ++numberOfAdjacentOccupiedSeats;
+            }
+        }
+    }
+
+    if (numberOfAdjacentOccupiedSeats == 0)
+    {
+        newComputedSeat = '#';
+        return;
+    }
+
+    if (numberOfAdjacentOccupiedSeats >= 5)
+    {
+        newComputedSeat = 'L';
+        return;
+    }
+
+    newComputedSeat = oldSeatingGrid[yIndex][xIndex];
+}
+
 void PrintSeatingGrid(const vector<string>& seatingGrid)
 {
     for (const string& row : seatingGrid)
@@ -114,7 +188,7 @@ size_t CountNumberOfOccupiedSeats(const vector<string>& seatingGrid)
     return numberOfOccupiedSeats;
 }
 
-size_t NumberOfOccupiedSeatsAfterStablization(vector<string> seatingGrid)
+size_t NumberOfOccupiedSeatsAfterStablization(vector<string> seatingGrid, SeatChangerFunction seatChangerFunction)
 {
     vector<string> newSeatingGrid;
 
@@ -125,7 +199,7 @@ size_t NumberOfOccupiedSeatsAfterStablization(vector<string> seatingGrid)
         {
             for (int xIndex = 1; xIndex < seatingGrid[0].size() - 1; ++xIndex)
             {
-                ComputeNewSeatingPositionPart1(newSeatingGrid[yIndex][xIndex], seatingGrid, yIndex, xIndex);
+                seatChangerFunction(newSeatingGrid[yIndex][xIndex], seatingGrid, yIndex, xIndex);
             }
         }
 
@@ -157,7 +231,11 @@ int main()
     cout << "Parse result: " << seatingGrid.size() << endl;
     cout << endl;
 
-    cout << "Number occupied seats after stablization (part 1): " << NumberOfOccupiedSeatsAfterStablization(seatingGrid) << endl;
+    auto seatChanger = SeatChangerPart1;
+    cout << "Number occupied seats after stablization (part 1): " << NumberOfOccupiedSeatsAfterStablization(seatingGrid, seatChanger) << endl;
+
+    seatChanger = SeatChangerPart2;
+    cout << "Number occupied seats after stablization (part 2): " << NumberOfOccupiedSeatsAfterStablization(seatingGrid, seatChanger) << endl;
 
     return 0;
 }
