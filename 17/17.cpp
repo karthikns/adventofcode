@@ -36,16 +36,11 @@ GridPart1::GridPart1(const vector<string>& initialState)
 
 void GridPart1::ComputeNextState()
 {
-    //size_t countOfNeighbors[MaxDimensionSize][MaxDimensionSize][MaxDimensionSize] = {};
     memset(countOfNeighbors, 0, sizeof(countOfNeighbors));
-
     for (size_t z = 1; z < MaxDimensionSize - 1; ++z)
         for (size_t y = 1; y < MaxDimensionSize - 1; ++y)
             for (size_t x = 1; x < MaxDimensionSize - 1; ++x)
                 countOfNeighbors[z][y][x] = GetCountOfActiveNeighbors(z, y, x);
-
-    //bool oldGrid[MaxDimensionSize][MaxDimensionSize][MaxDimensionSize] = {};
-    //memcpy(oldGrid, grid, sizeof(oldGrid));
 
     for (size_t z = 0; z < MaxDimensionSize; ++z)
         for (size_t y = 0; y < MaxDimensionSize; ++y)
@@ -106,6 +101,104 @@ size_t GridPart1::GetCountOfActiveNeighbors(const size_t z, const size_t y, cons
 }
 
 
+class GridPart2
+{
+public:
+    GridPart2(const vector<string>& initialState);
+    void ComputeNextState();
+    size_t GetActiveCubeCount() const;
+    void DisplayGrid();
+
+private:
+    size_t GetCountOfActiveNeighbors(const size_t w, const size_t z, const size_t y, const size_t x);
+
+    bool grid[MaxDimensionSize][MaxDimensionSize][MaxDimensionSize][MaxDimensionSize] = {};
+    size_t countOfNeighbors[MaxDimensionSize][MaxDimensionSize][MaxDimensionSize][MaxDimensionSize] = {};
+};
+
+GridPart2::GridPart2(const vector<string>& initialState)
+{
+    const size_t halfDimensionSize = MaxDimensionSize / 2;
+    const size_t yStart = (MaxDimensionSize - initialState.size()) / 2;
+    const size_t xStart = (MaxDimensionSize - initialState[0].size()) / 2;
+
+    for (size_t y = 0; y < initialState.size(); ++y)
+        for (size_t x = 0; x < initialState[y].size(); ++x)
+            if (initialState[y][x] == '#')
+                grid[halfDimensionSize][halfDimensionSize][yStart + y][xStart + x] = 1;
+}
+
+void GridPart2::ComputeNextState()
+{
+    memset(countOfNeighbors, 0, sizeof(countOfNeighbors));
+    for (size_t w = 1; w < MaxDimensionSize - 1; ++w)
+        for (size_t z = 1; z < MaxDimensionSize - 1; ++z)
+            for (size_t y = 1; y < MaxDimensionSize - 1; ++y)
+                for (size_t x = 1; x < MaxDimensionSize - 1; ++x)
+                    countOfNeighbors[w][z][y][x] = GetCountOfActiveNeighbors(w, z, y, x);
+
+    for (size_t w = 0; w < MaxDimensionSize; ++w)
+        for (size_t z = 0; z < MaxDimensionSize; ++z)
+            for (size_t y = 0; y < MaxDimensionSize; ++y)
+                for (size_t x = 0; x < MaxDimensionSize; ++x)
+                {
+                    const size_t neighborCount = countOfNeighbors[w][z][y][x];
+                    if (grid[w][z][y][x] == false && neighborCount == 3)
+                        grid[w][z][y][x] = true;
+                    else if (grid[w][z][y][x] == true && (neighborCount < 2 || neighborCount > 3))
+                        grid[w][z][y][x] = false;
+                }
+}
+
+size_t GridPart2::GetActiveCubeCount() const
+{
+    size_t activeCubeCount = 0;
+    for (int w = 0; w < MaxDimensionSize; ++w)
+        for (int z = 0; z < MaxDimensionSize; ++z)
+            for (int y = 0; y < MaxDimensionSize; ++y)
+                for (int x = 0; x < MaxDimensionSize; ++x)
+                    activeCubeCount += grid[w][z][y][x];
+
+    return activeCubeCount;
+}
+
+void GridPart2::DisplayGrid()
+{
+    for(size_t w = 0; w < MaxDimensionSize; ++w)
+        for (size_t z = 0; z < MaxDimensionSize; ++z)
+        {
+            cout << "z=" << z << ", w=" << w << endl;
+            for (size_t y = 0; y < MaxDimensionSize; ++y)
+            {
+                for (size_t x = 0; x < MaxDimensionSize; ++x)
+                {
+                    char characterToDisplay = '.';
+                    if (grid[w][z][y][x])
+                        characterToDisplay = '#';
+
+                    cout << characterToDisplay << " ";
+                }
+
+                cout << endl;
+            }
+
+        cout << endl;
+    }
+}
+
+size_t GridPart2::GetCountOfActiveNeighbors(const size_t w, const size_t z, const size_t y, const size_t x)
+{
+    size_t countOfActiveNeighbors = 0;
+    for (int l = -1; l <= 1; ++l)
+        for (int k = -1; k <= 1; ++k)
+            for (int j = -1; j <= 1; ++j)
+                for (int i = -1; i <= 1; ++i)
+                    countOfActiveNeighbors += grid[w + l][z + k][y + j][x + i];
+
+    countOfActiveNeighbors -= grid[w][z][y][x];
+    return countOfActiveNeighbors;
+}
+
 vector<string> ParseInputFile(const string& inputFileName)
 {
     vector<string> parseResult{};
@@ -153,14 +246,29 @@ int main()
     cout << "Parsed lines: " << parseResult.size() << endl;
     cout << endl;
 
-    unique_ptr<GridPart1> grid = make_unique<GridPart1>(parseResult);
+    {
+        // Part 1
+        unique_ptr<GridPart1> grid = make_unique<GridPart1>(parseResult);
 
-    for(size_t index = 0; index < 6; ++index)
-        grid->ComputeNextState();
+        for (size_t index = 0; index < 6; ++index)
+            grid->ComputeNextState();
 
-    //grid->DisplayGrid();
+        //grid->DisplayGrid();
 
-    cout << "Active cube count: " << grid->GetActiveCubeCount() << endl;
+        cout << "Active cube count: " << grid->GetActiveCubeCount() << endl;
+    }
+
+    {
+        // Part 2
+        unique_ptr<GridPart2> grid = make_unique<GridPart2>(parseResult);
+
+        for (size_t index = 0; index < 6; ++index)
+            grid->ComputeNextState();
+
+        //grid->DisplayGrid();
+
+        cout << "Active cube count: " << grid->GetActiveCubeCount() << endl;
+    }
 
     return 0;
 }
