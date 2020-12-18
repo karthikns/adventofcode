@@ -135,6 +135,71 @@ uint64_t ComputeEquationPart1(const string& equationString)
     return equationValue;
 }
 
+struct OperandOp
+{
+    uint64_t number = 0;
+    char op = '\0';
+};
+
+uint64_t ComputeEquationPart2(const string& equationString)
+{
+    string equationStringToProcess = equationString + '*';
+
+    vector<OperandOp> operandOps;
+    for (size_t index = 0; index < equationString.size();)
+    {
+        const size_t lengthOfOperand = FindOperandStringSize(equationStringToProcess, index);
+        uint64_t operandValue = 0;
+        if (lengthOfOperand == 1)
+        {
+            const char charAtIndex = equationStringToProcess[index];
+            const char zeroChar = '0';
+            operandValue = static_cast<uint64_t>(charAtIndex - zeroChar);
+        }
+        else
+        {
+            operandValue = ComputeEquationPart2(equationStringToProcess.substr(index + 1, lengthOfOperand - 2));
+        }
+
+        index += lengthOfOperand;
+
+        const char op = equationStringToProcess[index];
+        ++index;
+
+        operandOps.push_back({operandValue, op});
+    }
+
+    const function<bool(const OperandOp& operandOp)> doesOperandOpContainPlusChecker =
+        [](const OperandOp& operandOp) -> bool
+        {
+            return operandOp.op == '+';
+        };
+
+    // Process all +
+    vector<OperandOp> multiplyOperandOps;
+    for (size_t index = 0; index < operandOps.size(); ++index)
+    {
+        if (operandOps[index].op == '+')
+        {
+            operandOps[index + 1].number += operandOps[index].number;
+            continue;
+        }
+
+        multiplyOperandOps.emplace_back(operandOps[index]);
+    }
+
+
+    // Process all *
+    uint64_t equationValue = 1;
+    for (const OperandOp& operandOp : multiplyOperandOps)
+    {
+        equationValue *= operandOp.number;
+    }
+
+    //cout << equationString << ": " << equationValue << endl;
+    return equationValue;
+}
+
 uint64_t ComputeSumOfEquations(const vector<string>& equationsStrings, const function<uint64_t(const string&)>& computeEquationFunction)
 {
     uint64_t sumOfEquations = 0;
@@ -162,6 +227,10 @@ int main()
 
     computeEquationFunction = ComputeEquationPart1;
     cout << "Sum of equations (Part 1): " << ComputeSumOfEquations(parseResult, computeEquationFunction) << endl;
+    cout << endl;
+
+    computeEquationFunction = ComputeEquationPart2;
+    cout << "Sum of equations (Part 2): " << ComputeSumOfEquations(parseResult, computeEquationFunction) << endl;
     cout << endl;
 
     return 0;
