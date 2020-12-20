@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <iostream>
 #include <fstream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -18,7 +19,10 @@ class Tile
 {
 public:
     Tile(const size_t tileId, const vector<string>& tileContents) :
-        tileId(tileId)
+        tileId(tileId),
+        tileContents(tileContents),
+        adjoiningTiles(4),
+        edges(4)
     {
         const size_t tileSize = tileContents.size();
         edges[0] = tileContents[0];
@@ -66,6 +70,35 @@ public:
         return tileId;
     }
 
+    void SetCornerTileToTopLeft()
+    {
+        // assert DoesTileHaveTwoNeighbors()
+
+        size_t numberOfLeftRotations = 1;
+
+        // 0 is top, 3 is left
+        // 1 is right, 2 is bottom
+        if (adjoiningTiles[3].tileId == 0 && adjoiningTiles[0].tileId == 0)
+            return;
+        else if (adjoiningTiles[0].tileId == 0 && adjoiningTiles[1].tileId == 0)
+            numberOfLeftRotations = 1;
+        else if (adjoiningTiles[1].tileId == 0 && adjoiningTiles[2].tileId == 0)
+            numberOfLeftRotations = 2;
+        else if (adjoiningTiles[2].tileId == 0 && adjoiningTiles[3].tileId == 0)
+            numberOfLeftRotations = 3;
+
+        // TODO: rotate left number of times
+    }
+
+    bool HasTileNeighbor(size_t tileId) const
+    {
+        for (size_t index = 0; index < c_numberOfSides; ++index)
+            if (adjoiningTiles[index].tileId == tileId)
+                return true;
+
+        return false;
+    }
+
 private:
     bool DoSidesMatch(const string& sideOne, const string& sideTwo)
     {
@@ -78,12 +111,13 @@ private:
     }
 
     size_t tileId = 0;
-    AdjoiningTile adjoiningTiles[4];
-    string edges[4] = {};
+    vector<AdjoiningTile> adjoiningTiles;
+    vector<string> edges;
+    vector<string> tileContents;
 
 };
 
-Tile ParseTile(const size_t tileId, ifstream& inputFile)
+shared_ptr<Tile> ParseTile(const size_t tileId, ifstream& inputFile)
 {
     vector<string> tileContents;
 
@@ -100,12 +134,12 @@ Tile ParseTile(const size_t tileId, ifstream& inputFile)
     }
 
 
-    return Tile(tileId, tileContents);
+    return make_shared<Tile>(tileId, tileContents);
 }
 
-vector<Tile> ParseInputFile(const string& inputFileName)
+vector<shared_ptr<Tile>> ParseInputFile(const string& inputFileName)
 {
-    vector<Tile> tiles;
+    vector<shared_ptr<Tile>> tiles;
 
     try
     {
@@ -125,7 +159,7 @@ vector<Tile> ParseInputFile(const string& inputFileName)
 
             if (line.find("Tile") != string::npos)
             {
-                Tile tile = ParseTile(stoul(line.substr(5, 4)), inputFile);
+                shared_ptr<Tile> tile = ParseTile(stoul(line.substr(5, 4)), inputFile);
                 tiles.emplace_back(tile);
             }
         }
@@ -139,30 +173,81 @@ vector<Tile> ParseInputFile(const string& inputFileName)
     return tiles;
 }
 
-void ProcessTileNeighbors(vector<Tile>& tiles)
+void ProcessTileNeighbors(vector<shared_ptr<Tile>>& tiles)
 {
     for (size_t outerIndex = 0; outerIndex < tiles.size() - 1; ++outerIndex)
         for (size_t innerIndex = outerIndex + 1; innerIndex < tiles.size(); ++innerIndex)
-            tiles[outerIndex].ProcessTileNeighbor(tiles[innerIndex]);
+            tiles[outerIndex]->ProcessTileNeighbor(*tiles[innerIndex]);
 }
 
-uint64_t GetCornerTileIdsMultiplied(const vector<Tile>& tiles)
+uint64_t GetCornerTileIdsMultiplied(const vector<shared_ptr<Tile>>& tiles)
 {
     uint64_t cornerTileIdsMultiplied = 1;
 
-    for (const Tile& tile : tiles)
-        if (tile.DoesTileHaveTwoNeighbors())
-            cornerTileIdsMultiplied *= tile.GetTileId();
+    for (const shared_ptr<Tile>& tile : tiles)
+        if (tile->DoesTileHaveTwoNeighbors())
+            cornerTileIdsMultiplied *= tile->GetTileId();
 
     return cornerTileIdsMultiplied;
 }
 
+uint64_t GetACornerTileIndex(const vector<shared_ptr<Tile>>& tiles)
+{
+    for (size_t index = 0; index < tiles.size(); ++index)
+        if (tiles[index]->DoesTileHaveTwoNeighbors())
+            return index;
+
+    return 1000;
+}
+
+size_t CountNumberOfHashesNotInMonster(const vector<shared_ptr<Tile>>& tiles)
+{
+    const size_t gridSize = static_cast<size_t>(sqrt(tiles.size()));
+
+    vector<shared_ptr<Tile>> tilesToBeProcessed = tiles;
+    const size_t cornerTileIndex = GetACornerTileIndex(tilesToBeProcessed);
+    const shared_ptr<Tile> cornerTile = tilesToBeProcessed[cornerTileIndex];
+
+    tilesToBeProcessed.erase(tilesToBeProcessed.begin() + cornerTileIndex);
+
+    size_t assembledPuzzle[15][15] = {};
+    assembledPuzzle[1][1] = cornerTile->GetTileId();
+
+    for (size_t y = 1; y <= gridSize; ++y)
+    {
+        for (size_t x = 1; x <= gridSize; ++x)
+        {
+            if (y == 1 && x == 1)
+                continue;
+
+            const size_t topNeighborTileId = assembledPuzzle[y - 1][x];
+            const size_t leftNeighborTileId = assembledPuzzle[y][x - 1];
+
+            auto findIterator = find_if(
+                begin(tilesToBeProcessed),
+                end(tilesToBeProcessed),
+                [topNeighborTileId, leftNeighborTileId](auto tile) -> bool {
+                    return tile->HasTileNeighbor(topNeighborTileId) && tile->HasTileNeighbor(leftNeighborTileId);
+                });
+
+            // assert findIndex is not end
+
+            assembledPuzzle[y][x] = (*findIterator)->GetTileId();
+            tilesToBeProcessed.erase(findIterator);
+        }
+    }
+
+    cornerTile->SetCornerTileToTopLeft();
+
+    return gridSize;
+}
+
 int main()
 {
-    const string inputFileName(R"(20_in.txt)");
-    //const string inputFileName(R"(20_sample_in.txt)");
+    //const string inputFileName(R"(20_in.txt)");
+    const string inputFileName(R"(20_sample_in.txt)");
 
-    vector<Tile> tiles = ParseInputFile(inputFileName);
+    vector<shared_ptr<Tile>> tiles = ParseInputFile(inputFileName);
     cout << endl;
 
     cout << "Tiles size: " << tiles.size() << endl;
@@ -171,6 +256,9 @@ int main()
     ProcessTileNeighbors(tiles);
 
     cout << "Get corner tile ids multiplied: " << GetCornerTileIdsMultiplied(tiles) << endl;
+    cout << endl;
+
+    cout << "Count number of hashes not in monster: " << CountNumberOfHashesNotInMonster(tiles) << endl;
     cout << endl;
 
     return 0;
