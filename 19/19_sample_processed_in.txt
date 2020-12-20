@@ -1,0 +1,23 @@
+id 0
+two 4 6
+id 6
+two 1 5
+id 1
+two 2 3
+two 3 2
+id 2
+two 4 4
+two 5 5
+id 3
+two 4 5
+two 5 4
+id 4
+"a"
+id 5
+"b"
+
+ababbb
+bababa
+abbbab
+aaabbb
+aaaabbb
