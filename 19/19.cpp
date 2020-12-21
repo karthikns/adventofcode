@@ -7,6 +7,12 @@
 
 using namespace std;
 
+enum class Part
+{
+    Part1,
+    Part2
+};
+
 tuple<vector<string>, vector<string>> ParseInputFile(const string& inputFileName)
 {
     vector<string> ruleStrings;
@@ -26,7 +32,7 @@ tuple<vector<string>, vector<string>> ParseInputFile(const string& inputFileName
         while (inputFile.good() && !inputFile.eof())
         {
             getline(inputFile, line);
-            cout << "line1: " << line << endl;
+            //cout << "line1: " << line << endl;
 
             if (line.empty())
                 break;
@@ -38,7 +44,7 @@ tuple<vector<string>, vector<string>> ParseInputFile(const string& inputFileName
         while (inputFile.good() && !inputFile.eof())
         {
             getline(inputFile, line);
-            cout << "line2: " << line << endl;
+            //cout << "line2: " << line << endl;
 
             if (line.empty())
                 break;
@@ -65,11 +71,12 @@ struct Rule
 class AllRules
 {
 public:
-    AllRules(const vector<string>& rulesStrings):
+    AllRules(const vector<string>& rulesStrings, Part part):
         rules(500),
         rulesRegEx(500),
         numRulesProcessed(0),
-        totalNumRules(0)
+        totalNumRules(0),
+        part(part)
     {
         ProcessRuleStrings(rulesStrings);
         ProcessRules();
@@ -79,6 +86,11 @@ public:
     {
         regex regex("^" + rulesRegEx[0] + "$");
         return regex_match(message, regex);
+    }
+
+    string GetRegexString() const
+    {
+        return "^" + rulesRegEx[0] + "$";
     }
 
 private:
@@ -137,9 +149,16 @@ private:
 
                 string ruleRegEx;
                 if (rules[id].sequences.size() == 1)
-                    ruleRegEx = "(" + ProcessSequence(rules[id].sequences[0]) + ")";
+                    ruleRegEx = "(" + ProcessSequence(rules[id].sequences[0], id) + ")";
                 else
-                    ruleRegEx = "((" + ProcessSequence(rules[id].sequences[0]) + ")|(" + ProcessSequence(rules[id].sequences[1]) + "))";
+                {
+                    ruleRegEx = "((" + ProcessSequence(rules[id].sequences[0], id) + ")|(" + ProcessSequence(rules[id].sequences[1], id) + "))";
+                }
+
+                if (id == 8 && part == Part::Part2)
+                {
+                    ruleRegEx = "(" + ruleRegEx + "+)";
+                }
 
                 ++numRulesProcessed;
                 rules[id].sequences.clear();
@@ -148,12 +167,21 @@ private:
         }
     }
 
-    string ProcessSequence(const pair<int, int>& sequence)
+    string ProcessSequence(const pair<int, int>& sequence, const size_t ruleId)
     {
         if (sequence.second == 256)
             return rulesRegEx[sequence.first];
 
-        return rulesRegEx[sequence.first] + rulesRegEx[sequence.second];
+        string returnString = rulesRegEx[sequence.first] + rulesRegEx[sequence.second];
+
+        if (ruleId == 11)
+        {
+            returnString = 
+                "(" + rulesRegEx[sequence.first] + "){1}" +
+                "(" + rulesRegEx[sequence.second] + "){1}";
+        }
+
+        return returnString;
     }
 
     bool AreAllSequencesProcessed(const Rule& rule)
@@ -175,6 +203,7 @@ private:
     vector<string> rulesRegEx;
     size_t numRulesProcessed;
     size_t totalNumRules;
+    Part part;
 
 };
 
@@ -182,16 +211,57 @@ size_t CountOfValidMessages(vector<string>& messagesToValidate, const AllRules& 
 {
     size_t numberOfValidMessages = 0;
 
+    vector<string> invalidMessages;
+
     for (size_t index = 0; index < messagesToValidate.size(); ++index)
     {
-        cout << "Validating message " << index+1 << " of " << messagesToValidate.size() << endl;
+        //if ((index + 1) % 10 == 0)
+        //    cout << "Validating message " << index + 1 << " of " << messagesToValidate.size() << endl;
+
         if (allRules.CheckIfMessageIsValid(messagesToValidate[index]))
             ++numberOfValidMessages;
+        else
+            invalidMessages.push_back(messagesToValidate[index]);
     }
 
+    messagesToValidate = move(invalidMessages);
     return numberOfValidMessages;
 }
 
+size_t CountOfInvalidMessagesPart2(vector<string>& messagesToValidate, const AllRules& allRules)
+{
+    const size_t messagesSize = messagesToValidate.size();
+
+    const string regexString = allRules.GetRegexString();
+    for (size_t index = 1; index <= 9; ++index)
+    {
+        vector<string> invalidStrings;
+
+        string regexStringCopy = regexString;
+        char newChar = '0' + static_cast<char>(index);
+        replace(begin(regexStringCopy), end(regexStringCopy), '1', newChar);
+
+        regex regularExpression(regexStringCopy);
+
+        //cout << "Validating with instances: " << index << endl;
+        for (size_t index = 0; index < messagesToValidate.size(); ++index)
+        {
+            //if((index + 1) % 10 == 0)
+            //    cout << "Validating message " << index + 1 << " of " << messagesToValidate.size() << endl;
+
+            if (!regex_match(messagesToValidate[index], regularExpression))
+                invalidStrings.push_back(messagesToValidate[index]);
+        }
+        //cout << endl;
+
+        messagesToValidate = move(invalidStrings);
+    }
+
+    return messagesToValidate.size();
+}
+
+// Part 2
+// Incorrect: 235
 int main()
 {
     const string inputFileName(R"(19_processed_in.txt)");
@@ -204,11 +274,17 @@ int main()
     cout << endl;
 
     cout << "Rule strings size: " << ruleStrings.size() << endl;
-    cout << "Messages to validate size: " << messagesToValidate.size() << endl;
+    const size_t totalMessagesSize = messagesToValidate.size();
+    cout << "Messages to validate size: " << totalMessagesSize << endl;
     cout << endl;
 
-    AllRules allRules(ruleStrings);
-    cout << "Count of valid messages: " << CountOfValidMessages(messagesToValidate, ruleStrings);
+    AllRules allRules(ruleStrings, Part::Part1);
+    cout << "Count of valid messages (Part 1): " << CountOfValidMessages(messagesToValidate, allRules);
+    cout << endl << endl;
+
+    AllRules allRules2(ruleStrings, Part::Part2);
+    cout << "Count of valid messages (Part 2): " << totalMessagesSize - CountOfInvalidMessagesPart2(messagesToValidate, allRules2);
+    cout << endl;
 
     return 0;
 }
