@@ -235,10 +235,8 @@ map<string, string> BuildAllergenIngredientMapping(const vector<Item>& items)
     return allergenToIngredientMap;
 }
 
-size_t GetNumberOfIngredientsThatDontHaveAnAllergen(const vector<Item>& items)
+size_t GetNumberOfIngredientsThatDontHaveAnAllergen(const vector<Item>& items, const map<string, string>& allergenToIngredientMap)
 {
-    map<string, string> allergenToIngredientMap = BuildAllergenIngredientMapping(items);
-
     vector<Item> itemsWithoutAllergenIngredients = items;
     for (auto mapIterator : allergenToIngredientMap)
         RemoveIngredientFromItems(mapIterator.second, itemsWithoutAllergenIngredients);
@@ -246,6 +244,20 @@ size_t GetNumberOfIngredientsThatDontHaveAnAllergen(const vector<Item>& items)
     return GetSumOfIngedientsCountInItems(itemsWithoutAllergenIngredients);
 }
 
+string ConcatenateIngredientNames(const map<string, string>& allergenToIngredientMap)
+{
+    string result;
+
+    if (allergenToIngredientMap.empty())
+        return {};
+
+    for (auto allergenToIngredientPair : allergenToIngredientMap)
+    {
+        result += allergenToIngredientPair.second + ',';
+    }
+
+    return result.substr(0, result.size() - 1);
+}
 
 int main()
 {
@@ -257,7 +269,12 @@ int main()
     cout << "Items size: " << items.size() << endl;
     cout << endl;
 
-    cout << "Number Of Ingredients That Dont Have An Allergen: " << GetNumberOfIngredientsThatDontHaveAnAllergen(items) << endl;
+    map<string, string> allergenToIngredientMap = BuildAllergenIngredientMapping(items);
+
+    cout << "Number Of Ingredients That Dont Have An Allergen: " << GetNumberOfIngredientsThatDontHaveAnAllergen(items, allergenToIngredientMap) << endl;
+    cout << endl;
+
+    cout << "Ingredient names sorted by their allergen names lexicographically: " << ConcatenateIngredientNames(allergenToIngredientMap);
     cout << endl;
 
     return 0;
